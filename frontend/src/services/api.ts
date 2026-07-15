@@ -62,6 +62,9 @@ export const runScreen = (market: string) =>
 export const getScreenResults = () =>
   api.get<ApiResponse<ScreenResult[]>>('/api/screen/results')
 
+export const getScanProgress = () =>
+  api.get<ApiResponse<ScanProgress>>('/api/screen/run/progress')
+
 // === Watchlist ===
 
 export const getWatchlist = () =>

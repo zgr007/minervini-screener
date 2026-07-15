@@ -2,6 +2,7 @@
 Minervini Screener v1.0 - API Endpoints (Frontend-facing)
 Routes that match what the frontend expects, backed by real scan data.
 """
+import os
 from datetime import datetime
 from typing import Optional
 from fastapi import APIRouter, Query, HTTPException
@@ -199,16 +200,107 @@ async def screen_results():
 
 @router.post("/screen/run")
 async def screen_run():
-    """Run screening scan (real)."""
+    """Run screening scan as a background asyncio task.
+    Returns immediately with a run_id for progress polling."""
+    from web.scan_progress import get_progress, is_running
+
+    if is_running():
+        return {"data": get_progress(), "message": "Scan already running"}
+
+    run_id = datetime.now().strftime("%Y%m%d%H%M%S")
+
+    # Launch scan in background asyncio task (not subprocess)
+    import asyncio
+    asyncio.create_task(_run_scan_background(run_id))
+
+    return {
+        "data": {
+            "run_id": run_id,
+            "status": "started",
+            "message": "Scan started in background",
+        }
+    }
+
+
+async def _run_scan_background(run_id: str):
+    """Run the full scan pipeline with progress tracking."""
+    from web.scan_progress import create_run, update_progress, complete_run
+    from data.downloader import DataDownloader
     from web.scan_cache import invalidate_cache
-    invalidate_cache()
+    from scheduler import _persist_scan_results_to_db
+    import os
+
     try:
-        results = await get_scan_results()
-        transformed = [_transform_screen_result(r) for r in results]
-        return {"data": {"run_id": datetime.now().strftime("%Y%m%d%H%M%S"), "status": "completed", "count": len(transformed)}}
+        # Count stocks first for progress total
+        from data.database import async_session_factory, Stock
+        from sqlalchemy import select, func
+
+        async with async_session_factory() as session:
+            count_result = await session.execute(
+                select(func.count()).select_from(Stock).where(Stock.market == "CN")
+            )
+            total_stocks = count_result.scalar() or 0
+
+        create_run(run_id, total=total_stocks)
+
+        async def callback(processed, total, phase, phase_label, message):
+            update_progress(processed, total, phase, phase_label, message)
+
+        downloader = DataDownloader()
+        results = await downloader.screen_all(market="CN", progress_callback=callback)
+
+        if results:
+            await _persist_scan_results_to_db(results)
+
+        invalidate_cache()
+        complete_run("completed")
+        logger.info(f"Background scan completed: {len(results)} results")
+
     except Exception as e:
-        logger.error(f"Screen run failed: {e}")
-        return {"data": {"run_id": "error", "status": "failed", "error": str(e)}}
+        logger.error(f"Background scan failed: {e}", exc_info=True)
+        complete_run("failed", str(e))
+
+
+@router.get("/screen/run/progress")
+async def screen_run_progress():
+    """Get current scan progress for progress bar polling."""
+    from web.scan_progress import get_progress
+    return {"data": get_progress()}
+
+
+async def _persist_scan_results(run_id: str, results: list[dict]) -> None:
+    """Write screen_all() results to the screen_results DB table."""
+    from data.database import async_session_factory, ScreenResult
+    from sqlalchemy import delete
+
+    if not results:
+        logger.warning("No scan results to persist")
+        return
+
+    async with async_session_factory() as session:
+        # Clear old results for this run
+        await session.execute(delete(ScreenResult))
+
+        for r in results:
+            signal = r.get("signal", "no_entry")
+            # Determine if the stock should carry existing scan data as a fresh entry:
+            entry = ScreenResult(
+                run_date=datetime.now(),
+                market=r.get("market", "CN"),
+                symbol=r.get("code", ""),
+                name=r.get("name", ""),
+                price=r.get("current_price") or 0,
+                trend_passed=r.get("stage2", False),
+                rs_passed=(r.get("rs_rating") or 0) >= 80 and r.get("stage2", False),
+                rs_percentile=r.get("rs_rating") or 0,
+                total_score=r.get("score") or 0,
+                selected=(signal == "buy"),
+                reason=str(r.get("reason", ""))[:500],
+            )
+            session.add(entry)
+
+        await session.commit()
+        logger.info(f"Persisted {len(results)} scan results to screen_results table")
 
 
 @router.get("/watchlist")

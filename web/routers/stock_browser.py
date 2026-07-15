@@ -16,7 +16,16 @@ import yaml
 router = APIRouter(prefix="/api/stock-browser", tags=["stock-browser"])
 logger = get_logger(__name__)
 
-from data.stock_names import resolve_name, resolve_name_yf
+from data.stock_names import resolve_name
+
+async def _resolve_name_async(symbol: str, market: str) -> str:
+    """Async version of name resolution — wraps yfinance in thread pool."""
+    if market == "CN":
+        return resolve_name(symbol, market)
+    # US stock — use thread pool to avoid blocking the event loop
+    from data.stock_names import resolve_name_yf
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, resolve_name_yf, symbol)
 
 # ── Load CN stock list from pre-generated JSON (no live akshare calls) ──
 _CN_STOCKS_FILE = Path("data/cn_stocks.json")
@@ -162,7 +171,7 @@ async def add_stock(req: AddStockRequest):
     name = req.name or symbol
     # Auto-resolve name if caller didn't provide one or provided symbol-only
     if not req.name or req.name.strip() == symbol:
-        resolved = resolve_name(symbol, market) if market == "CN" else resolve_name_yf(symbol)
+        resolved = await _resolve_name_async(symbol, market)
         if resolved and resolved != symbol:
             name = resolved
 
@@ -182,8 +191,9 @@ async def add_stock(req: AddStockRequest):
             await session.commit()
             logger.info(f"Stock registered in DB", symbol=symbol, market=market)
 
-    # 2. Add to config.yaml (non-fatal if fails)
-    _add_to_config(symbol, market)
+    # 2. Add to config.yaml (non-fatal if fails, run in thread pool to avoid blocking)
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, _add_to_config, symbol, market)
 
     # 3. Trigger data download in background
     asyncio.create_task(_download_and_refresh(symbol, market))
@@ -256,6 +266,8 @@ async def backfill_names():
     from sqlalchemy import select
 
     updated = 0
+    from data.stock_names import resolve_name_yf
+    loop = asyncio.get_running_loop()
     async with async_session_factory() as session:
         result = await session.execute(select(Stock))
         stocks = result.scalars().all()
@@ -265,7 +277,7 @@ async def backfill_names():
             if stock.market == "CN":
                 real_name = resolve_name(stock.symbol, "CN")
             else:
-                real_name = resolve_name_yf(stock.symbol)
+                real_name = await loop.run_in_executor(None, resolve_name_yf, stock.symbol)
             if real_name and real_name != stock.symbol:
                 stock.name = real_name
                 updated += 1

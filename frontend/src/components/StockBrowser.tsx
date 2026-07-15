@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react'
 import {
   Card, Input, List, Button, Tag, Typography, Space, message, Spin, Empty, Segmented,
-  Divider, Row, Col, Tooltip, Popconfirm,
+  Divider, Row, Col, Tooltip, Popconfirm, Pagination,
 } from 'antd'
 import {
   SearchOutlined, PlusCircleOutlined, DeleteOutlined, ReloadOutlined,
@@ -33,9 +33,69 @@ const StockBrowser: React.FC = () => {
   // Adding state per symbol
   const [adding, setAdding] = useState<Record<string, boolean>>({})
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1)
+  const pageSize = 100
+
+  // Multi-select
+  const [selectedSymbols, setSelectedSymbols] = useState<Set<string>>(new Set())
+  const isMultiSelectingRef = useRef(false)
+  const cardContainerRef = useRef<HTMLDivElement>(null)
+
+  // mousedown on document → start drag session, select the clicked card
+  useEffect(() => {
+    const handleMouseDown = (e: MouseEvent) => {
+      const card = (e.target as HTMLElement).closest('[data-symbol]') as HTMLElement | null
+      if (!card) return
+      const symbol = card.getAttribute('data-symbol')
+      if (!symbol) return
+
+      e.preventDefault()
+      isMultiSelectingRef.current = true
+      setSelectedSymbols(new Set([symbol]))
+    }
+
+    document.addEventListener('mousedown', handleMouseDown)
+    return () => document.removeEventListener('mousedown', handleMouseDown)
+  }, [])
+
+  // mouseenter on each card → add to selection during drag
+  useEffect(() => {
+    const cards = document.querySelectorAll<HTMLElement>('[data-symbol]')
+
+    const handleEnter = (e: Event) => {
+      if (!isMultiSelectingRef.current) return
+      const symbol = (e.currentTarget as HTMLElement).getAttribute('data-symbol')
+      if (!symbol) return
+
+      setSelectedSymbols(prev => {
+        if (prev.has(symbol)) return prev
+        const next = new Set(prev)
+        next.add(symbol)
+        return next
+      })
+    }
+
+    cards.forEach(card => card.addEventListener('mouseenter', handleEnter))
+    return () => cards.forEach(card => card.removeEventListener('mouseenter', handleEnter))
+  }, [tracked, currentPage])
+
+  // Global mouseup → end session, clear if only 1 card (click-only, no drag)
+  useEffect(() => {
+    const handler = () => {
+      if (isMultiSelectingRef.current) {
+        setSelectedSymbols(prev => prev.size <= 1 ? new Set() : prev)
+      }
+      isMultiSelectingRef.current = false
+    }
+    window.addEventListener('mouseup', handler)
+    return () => window.removeEventListener('mouseup', handler)
+  }, [])
+
   // Load tracked stocks
   const loadTracked = useCallback(async () => {
     setLoadingTracked(true)
+    clearSelection()
     try {
       const res = await getTrackedStocks(market)
       setTracked(res.data.data || [])
@@ -113,8 +173,33 @@ const StockBrowser: React.FC = () => {
     }
   }
 
+  // Clear selection
+  const clearSelection = () => setSelectedSymbols(new Set())
+
+  // Batch delete selected stocks
+  const handleBatchDelete = async () => {
+    const symbols = Array.from(selectedSymbols)
+    let success = 0
+    for (const symbol of symbols) {
+      try {
+        await removeTrackedStock(market, symbol)
+        success++
+      } catch {
+        message.error(`删除 ${symbol} 失败`)
+      }
+    }
+    if (success > 0) {
+      message.success(`成功删除 ${success} 只股票`)
+    }
+    clearSelection()
+    loadTracked()
+  }
+
   // Check if a stock is already tracked
   const isTracked = (code: string) => tracked.some(t => t.symbol === code)
+
+  // Paginate tracked stocks
+  const paginatedTracked = tracked.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
   // Market tab color
   const marketColor = market === 'US' ? '#00b96b' : '#1677ff'
@@ -135,6 +220,8 @@ const StockBrowser: React.FC = () => {
           value={market}
           onChange={(val) => {
             setMarket(val as string)
+            setCurrentPage(1)
+            clearSelection()
             setQuery('')
             setSearchResults([])
             setShowResults(false)
@@ -257,6 +344,47 @@ const StockBrowser: React.FC = () => {
         </Space>
       </Divider>
 
+      {/* Batch action bar */}
+      {selectedSymbols.size > 0 && (
+        <div
+          style={{
+            background: '#fff',
+            border: '1px solid #d9d9d9',
+            borderRadius: 8,
+            padding: '10px 16px',
+            marginBottom: 12,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 16,
+          }}
+        >
+          <Space>
+            <CheckCircleOutlined style={{ color: '#1677ff' }} />
+            <Text strong style={{ color: '#1677ff' }}>
+              已选择 {selectedSymbols.size} 只股票
+            </Text>
+          </Space>
+          <Space>
+            <Button size="small" onClick={clearSelection}>
+              取消选择
+            </Button>
+            <Popconfirm
+              title={`确认删除选中的 ${selectedSymbols.size} 只股票？`}
+              description="将从数据库删除这些股票的所有数据"
+              onConfirm={handleBatchDelete}
+              okText="删除"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
+            >
+              <Button size="small" danger type="primary" icon={<DeleteOutlined />}>
+                批量删除
+              </Button>
+            </Popconfirm>
+          </Space>
+        </div>
+      )}
+
       {/* Tracked Stocks List */}
       <Spin spinning={loadingTracked}>
         {tracked.length === 0 ? (
@@ -264,36 +392,43 @@ const StockBrowser: React.FC = () => {
             <Empty description={`暂无${marketLabel}，使用上方搜索框添加`} />
           </div>
         ) : (
-          <Row gutter={[8, 8]}>
-            {tracked.map(stock => (
-              <Col xs={24} sm={12} md={8} lg={6} key={stock.symbol}>
+          <Row gutter={[8, 8]} ref={cardContainerRef}>
+            {paginatedTracked.map(s => {
+              const selected = selectedSymbols.has(s.symbol)
+              return (
+              <Col xs={24} sm={12} md={8} lg={6} key={s.symbol}>
                 <Card
                   size="small"
+                  data-symbol={s.symbol}
                   style={{
-                    borderLeft: `3px solid ${marketColor}`,
+                    border: selected ? '2px solid #1677ff' : '1px solid #e8e8e8',
                     borderRadius: 6,
+                    background: 'transparent',
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    transition: 'background 0.1s',
                   }}
                   hoverable
                 >
                   <Row align="middle" justify="space-between">
                     <Col>
                       <Space direction="vertical" size={0}>
-                        <Text strong style={{ fontSize: 16 }}>{stock.symbol}</Text>
+                        <Text strong style={{ fontSize: 16 }}>{s.symbol}</Text>
                         <Text
-                          type={stock.name !== stock.symbol ? 'secondary' : 'danger'}
+                          type={s.name !== s.symbol ? 'secondary' : 'danger'}
                           style={{ fontSize: 12 }}
                         >
-                          {stock.name !== stock.symbol
-                            ? stock.name
+                          {s.name !== s.symbol
+                            ? s.name
                             : '名称待解析'}
                         </Text>
                       </Space>
                     </Col>
                     <Col>
                       <Popconfirm
-                        title={`移除 ${stock.symbol}？`}
+                        title={`移除 ${s.symbol}？`}
                         description="将从数据库删除该股票的所有数据"
-                        onConfirm={() => handleRemove(stock)}
+                        onConfirm={() => { clearSelection(); handleRemove(s) }}
                         okText="移除"
                         cancelText="取消"
                         okButtonProps={{ danger: true }}
@@ -304,6 +439,7 @@ const StockBrowser: React.FC = () => {
                             danger
                             size="small"
                             icon={<DeleteOutlined />}
+                            onMouseDown={e => e.stopPropagation()}
                           />
                         </Tooltip>
                       </Popconfirm>
@@ -311,8 +447,22 @@ const StockBrowser: React.FC = () => {
                   </Row>
                 </Card>
               </Col>
-            ))}
+              )
+            })}
           </Row>
+        )}
+
+        {tracked.length > pageSize && (
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
+            <Pagination
+              current={currentPage}
+              pageSize={pageSize}
+              total={tracked.length}
+              showSizeChanger={false}
+              showQuickJumper
+              onChange={(page) => setCurrentPage(page)}
+            />
+          </div>
         )}
       </Spin>
 

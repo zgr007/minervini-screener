@@ -1,4 +1,5 @@
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Row, Col, Card, Statistic, Table, Tag, Typography, Spin } from 'antd'
 import {
   ArrowUpOutlined,
@@ -16,6 +17,7 @@ import type { DashboardData, Signal, ScreenResult } from '../services/types'
 const { Title, Text } = Typography
 
 const Dashboard: React.FC = () => {
+  const navigate = useNavigate()
   const { data: dashData, isLoading: dashLoading } = useQuery({
     queryKey: ['dashboard'],
     queryFn: () => getDashboard().then(r => r.data.data),
@@ -49,11 +51,11 @@ const Dashboard: React.FC = () => {
   ]
 
   const signalColumns = [
-    { title: '代码', dataIndex: 'symbol', key: 'symbol' },
+    { title: '代码', dataIndex: 'symbol', key: 'symbol', render: (v: string) => <a onClick={() => navigate(`/stock/${v}`)}>{v}</a> },
     { title: '名称', dataIndex: 'name', key: 'name', render: (v: string) => v ? v : <Text type="secondary">--</Text> },
-    { title: '类型', dataIndex: 'signal_type', key: 'signal_type', render: (v: string) => <Tag color={v === 'BUY' ? 'green' : 'red'}>{v === 'BUY' ? '买入' : '卖出'}</Tag> },
-    { title: '方向', dataIndex: 'direction', key: 'direction' },
-    { title: '价格', dataIndex: 'price', key: 'price', render: (v: number) => `$${v?.toFixed(2)}` },
+    { title: '类型', dataIndex: 'signal_type', key: 'signal_type', sorter: (a: Signal, b: Signal) => a.signal_type.localeCompare(b.signal_type), render: (v: string) => <Tag color={v === 'BUY' ? 'green' : 'red'}>{v === 'BUY' ? '买入' : '关注'}</Tag> },
+    { title: '方向', dataIndex: 'direction', key: 'direction', sorter: (a: Signal, b: Signal) => a.direction.localeCompare(b.direction) },
+    { title: '价格', dataIndex: 'price', key: 'price', sorter: (a: Signal, b: Signal) => a.price - b.price, render: (v: number) => `$${v?.toFixed(2)}` },
     { title: '状态', dataIndex: 'status', key: 'status' },
   ]
 
@@ -133,10 +135,10 @@ const Dashboard: React.FC = () => {
               </Col>
               <Col span={12}>
                 <Statistic
-                  title="卖出信号"
-                  value={signals?.filter(s => s.signal_type === 'SELL').length || 0}
+                  title="关注信号"
+                  value={signals?.filter(s => s.signal_type === 'WATCH').length || 0}
                   prefix={<ArrowDownOutlined />}
-                  valueStyle={{ color: '#ff4d4f' }}
+                  valueStyle={{ color: '#faad14' }}
                 />
               </Col>
             </Row>

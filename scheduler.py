@@ -102,10 +102,13 @@ def cmd_scan(market: str) -> int:
 
 
 async def _scan_async(market: str) -> list[dict]:
-    """Async helper to run screening."""
+    """Async helper to run screening, persists results to DB."""
     from data.downloader import DataDownloader
     downloader = DataDownloader()
     results = await downloader.screen_all(market=market)
+
+    # Persist results to DB so dashboard can read them
+    await _persist_scan_results_to_db(results)
 
     buy_signals = [r for r in results if r.get("signal") == "buy"]
     watch_signals = [r for r in results if r.get("signal") == "watch"]
@@ -126,6 +129,40 @@ async def _scan_async(market: str) -> list[dict]:
             print(f"  {r['code']:10s} {r.get('name',''):30s} Score={r['score']:.1f}  Reason={r.get('reason','')[:60]}")
 
     return results
+
+
+async def _persist_scan_results_to_db(results: list[dict]) -> None:
+    """Write screen_all() results to the screen_results DB table."""
+    from datetime import datetime
+    from data.database import async_session_factory, ScreenResult
+    from sqlalchemy import delete
+
+    if not results:
+        logger.warning("No scan results to persist")
+        return
+
+    async with async_session_factory() as session:
+        await session.execute(delete(ScreenResult))
+
+        for r in results:
+            signal = r.get("signal", "no_entry")
+            entry = ScreenResult(
+                run_date=datetime.now(),
+                market=r.get("market", "CN"),
+                symbol=r.get("code", ""),
+                name=r.get("name", ""),
+                price=r.get("current_price") or 0,
+                trend_passed=r.get("stage2", False),
+                rs_passed=(r.get("rs_rating") or 0) >= 80 and r.get("stage2", False),
+                rs_percentile=r.get("rs_rating") or 0,
+                total_score=r.get("score") or 0,
+                selected=(signal == "buy"),
+                reason=str(r.get("reason", ""))[:500],
+            )
+            session.add(entry)
+
+        await session.commit()
+        logger.info(f"Persisted {len(results)} scan results to screen_results table")
 
 
 def cmd_monitor(market: str) -> int:

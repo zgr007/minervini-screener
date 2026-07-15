@@ -4,7 +4,8 @@ Coordinates data fetching from multiple sources with quality checks.
 """
 import asyncio
 from datetime import datetime, timedelta
-from typing import List, Optional, Callable
+from typing import List, Optional
+from collections.abc import Callable
 import pandas as pd
 
 from config.loader import settings
@@ -141,7 +142,11 @@ class DataDownloader:
             logger.error(f"download_stock failed", code=code, error=str(e))
             return None
 
-    async def screen_all(self, market: Optional[str] = None) -> list[dict]:
+    async def screen_all(
+        self,
+        market: Optional[str] = None,
+        progress_callback: Optional[Callable] = None,
+    ) -> list[dict]:
         """Run SEPA screening for all stocks in one or all markets.
 
         Loads stock data from database, calculates indicators,
@@ -149,6 +154,8 @@ class DataDownloader:
 
         Args:
             market: Optional market filter ("US" or "CN"). If None, screens all.
+            progress_callback: Optional async callable(processed, total, phase, phase_label, message)
+                               for progress bar reporting.
 
         Returns:
             list of dict result with signal, score, pattern info per stock
@@ -167,9 +174,11 @@ class DataDownloader:
             result = await session.execute(query)
             stocks = result.scalars().all()
 
+        total_stocks = len(stocks)
+
         # Phase 1: Load ALL price data and calculate indicators
         stock_dfs = {}  # {symbol: df_with_indicators}
-        for stock in stocks:
+        for i, stock in enumerate(stocks):
             try:
                 df = await self._load_stock_data(stock.symbol, stock.market)
                 if df is None or df.empty:
@@ -181,15 +190,20 @@ class DataDownloader:
                 stock_dfs[stock.symbol] = (stock, df)
             except Exception as e:
                 logger.error(f"Data load failed for {stock.symbol}", error=str(e))
+            if progress_callback:
+                await progress_callback(i + 1, total_stocks, "phase1", "加载行情数据", stock.symbol)
 
         # Phase 2: Compute RS ratings with full market context
+        if progress_callback:
+            await progress_callback(0, total_stocks, "phase2", "计算RS排名", "批量计算中...")
         raw_dfs = {sym: df for sym, (stk, df) in stock_dfs.items()}
         rs_engine = RSRatingEngine()
         rs_results = rs_engine.compute_batch(raw_dfs)
 
         # Phase 3: Run SEPA per stock with proper RS context
         results = []
-        for symbol, (stock, df) in stock_dfs.items():
+        stock_items = list(stock_dfs.items())
+        for j, (symbol, (stock, df)) in enumerate(stock_items):
             try:
                 rs = rs_results.get(symbol, {})
                 strategy_result = run_sepa(
@@ -218,6 +232,8 @@ class DataDownloader:
             except Exception as e:
                 logger.error(f"Screening failed for {stock.symbol}", error=str(e))
                 continue
+            if progress_callback:
+                await progress_callback(j + 1, len(stock_items), "phase3", "分析SEPA信号", stock.symbol)
 
         results.sort(key=lambda x: x.get("score", 0), reverse=True)
         logger.info(f"Screening complete: {len(results)} stocks analyzed")

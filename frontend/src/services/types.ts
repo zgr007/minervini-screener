@@ -164,7 +164,7 @@ export interface Signal {
   symbol: string
   name?: string
   signal_time: string
-  signal_type: 'BUY' | 'SELL'
+  signal_type: 'BUY' | 'SELL' | 'WATCH'
   direction: 'ENTER' | 'EXIT' | 'ADD' | 'REDUCE'
   price: number
   volume_confirmed: boolean
@@ -267,6 +267,21 @@ export interface DashboardData {
   today_sell_signals: number
   account_equity: number
   total_position_pct: number
+}
+
+// === Scan Progress Types ===
+
+export interface ScanProgress {
+  run_id: string | null
+  status: 'idle' | 'running' | 'completed' | 'failed'
+  phase: string
+  phase_label: string
+  total: number
+  processed: number
+  percent: number
+  message: string
+  started_at: string | null
+  completed_at: string | null
 }
 
 // === AI Report Types ===
