@@ -1,0 +1,74 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+*.whl
+
+# Virtual Environment
+venv/
+.venv/
+env/
+.env
+
+# Database
+*.db
+*.sqlite3
+*.sqlite
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env.local
+.env.production
+
+# Node
+node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/build/
+
+# Docker
+.docker/
+
+# Data
+data/downloads/
+*.csv
+*.parquet
+
+# Config overrides
+config.local.yaml
+config.override.yaml
+
+# Alembic
+alembic/versions/*.pyc
+
+# Test reports
+htmlcov/
+.coverage
+coverage.xml
+.pytest_cache/
+test-results/
+
+# Temp
+tmp/
+temp/

@@ -1,0 +1,288 @@
+ai:
+  ollama:
+    base_url: http://localhost:11434
+    model: llama2
+  openai:
+    max_tokens: 2000
+    model: gpt-4-turbo-preview
+    temperature: 0.3
+  prompts:
+    daily_report: daily_report_v1
+    stock_analysis: analyze_stock_v1
+  provider: openai
+app:
+  debug: true
+  log_format: json
+  log_level: INFO
+  name: Minervini Screener
+  version: 1.0.0
+backtest:
+  default_commission_pct: 0.001
+  default_initial_capital: 100000
+  default_slippage_pct: 0.001
+  min_trades_for_analysis: 10
+  risk_free_rate: 0.05
+data:
+  max_retries: 3
+  min_days_required: 252
+  quality_checks:
+    max_missing_pct: 0.1
+    max_price_gap_pct: 50.0
+    max_zero_volume_days: 5
+  request_timeout: 30
+  retry_delay_seconds: 5
+database:
+  echo_sql: false
+  max_overflow: 20
+  pool_size: 10
+  sqlite_path: data/minervini.db
+indicators:
+  atr:
+    period: 14
+  bollinger:
+    period: 20
+    std_multiplier: 2.0
+  ma:
+    periods:
+    - 10
+    - 50
+    - 150
+    - 200
+  rs:
+    periods_months:
+    - 3
+    - 6
+    - 12
+    weights:
+    - 0.4
+    - 0.35
+    - 0.25
+  volume:
+    sma_periods:
+    - 20
+    - 50
+market:
+  default: US
+  markets:
+    CN:
+      currency: CNY
+      data_source: akshare
+      default_tickers:
+      - '000001'
+      - '000300'
+      - '399001'
+      - '600519'
+      - 000858
+      - '002415'
+      - '000063'
+      - '002230'
+      - '002371'
+      - 002594
+      - '300124'
+      - '300274'
+      - '300308'
+      - '300502'
+      - '300750'
+      - '600406'
+      - '600703'
+      - '600745'
+      - '600845'
+      - '601728'
+      - '688008'
+      - '688012'
+      - '688036'
+      - '688111'
+      - '688256'
+      - '688981'
+      name: A-Shares
+      timezone: Asia/Shanghai
+      trading_days: Mon-Fri
+    US:
+      currency: USD
+      data_source: yfinance
+      default_tickers:
+      - ^GSPC
+      - ^IXIC
+      - ^DJI
+      - ^RUT
+      - AAPL
+      - MSFT
+      - GOOGL
+      - AMZN
+      - NVDA
+      - META
+      - TSLA
+      - JPM
+      - AMD
+      name: US Stocks
+      timezone: America/New_York
+      trading_days: Mon-Fri
+notifications:
+  channels:
+    bark:
+      enabled: false
+      key: ''
+      server: https://api.day.app
+    console:
+      enabled: true
+    email:
+      enabled: false
+      from_addr: ''
+      smtp_host: ''
+      smtp_password: ''
+      smtp_port: 587
+      smtp_user: ''
+      to_addr: ''
+    feishu:
+      enabled: false
+      webhook_url: ''
+    telegram:
+      bot_token: ''
+      chat_id: ''
+      enabled: false
+    webhook:
+      enabled: false
+      url: ''
+  notify_format:
+    include_price: true
+    include_reason: true
+    include_risk: true
+    include_volume: true
+  notify_on:
+  - weekly_screen
+  - daily_watchlist_update
+  - near_pivot
+  - breakout_buy
+  - stop_loss_triggered
+  - trailing_stop_update
+  - top_sell_signal
+  - market_downturn
+  - data_update_failure
+patterns:
+  bollinger:
+    band_width_contract_pct: 0.15
+    volume_confirmation_multiplier: 1.5
+  cup_handle:
+    handle_weeks:
+    - 1
+    - 2
+    min_weeks: 6
+    stop_loss_pct: 0.04
+  double_bottom:
+    min_gap_days: 10
+    stop_loss_pct_below_second: 0.02
+  flat_base:
+    min_weeks: 3
+    range_pct:
+    - 5
+    - 15
+    stop_loss_pct: 0.04
+  vcp:
+    contraction_decrease_required: true
+    max_contractions: 5
+    min_contractions: 2
+    stop_loss_pct_below_low: 0.08
+    volume_decline_required: true
+redis:
+  max_connections: 20
+  socket_timeout: 5
+risk:
+  forbidden:
+  - averaging_down
+  - full_position_single_stock
+  - buying_weakness
+  - chasing_extended_breakouts
+  - no_stop_loss
+  - trading_missing_data
+  - trading_incomplete_signals
+  market_phase:
+    bear:
+      max_holdings: 2
+      max_single_position_pct: 0.05
+      max_total_position_pct: 0.2
+      min_holdings: 0
+    bull:
+      max_holdings: 6
+      max_single_position_pct: 0.25
+      max_total_position_pct: 1.0
+      min_holdings: 3
+    neutral:
+      max_holdings: 4
+      max_single_position_pct: 0.15
+      max_total_position_pct: 0.6
+      min_holdings: 2
+  portfolio:
+    max_correlation: 0.7
+    max_daily_loss_pct: 0.03
+    max_drawdown_pct: 0.15
+    min_cash_reserve_pct: 0.05
+screening:
+  fundamental:
+    enabled: true
+    min_total_score: 6
+    scoring:
+      catalyst:
+        max_score: 1
+      eps_growth_yoy:
+        score_0: 0
+        score_100: 4
+        score_25: 2
+        score_50: 3
+        threshold_100: 100.0
+        threshold_25: 25.0
+        threshold_50: 50.0
+      revenue_growth:
+        max_score: 3
+        threshold: 10.0
+      roe:
+        max_score: 2
+        threshold: 17.0
+  institutional:
+    enabled: true
+    is_mandatory: false
+    scoring:
+      holder_decrease_threshold: -0.05
+      position_increase_threshold: 0.05
+      volume_accumulation_threshold: 1.5
+  rs:
+    min_percentile: 80
+    near_high_52w_threshold_pct: 15.0
+  stage2:
+    ma_fast_period: 10
+    ma_long_period: 150
+    ma_mid_period: 50
+    ma_ultra_long_period: 200
+    min_price_above_ma200_pct: 0.0
+    min_rise_from_52w_low_pct: 30.0
+signals:
+  buy:
+    add_position_days:
+    - 2
+    - 5
+    add_position_gain_pct:
+    - 0.02
+    - 0.05
+    initial_position_pct: 0.5
+    max_risk_per_trade_pct: 0.02
+    volume_multiplier: 1.5
+  sell:
+    stop_loss:
+      cup_handle_pct: 0.04
+      double_bottom_pct: 0.02
+      flat_base_pct: 0.04
+      hard_stop_pct: 0.02
+      vcp_pct: 0.08
+    top_signals:
+      below_50ma_pct: 0.02
+      consecutive_down_days: 2
+      target_profit_pct_1: 0.2
+      target_profit_pct_2: 0.25
+      target_profit_pct_exit: 0.3
+      volume_stagnation_gain_pct: 0.01
+      volume_stagnation_multiplier: 2.0
+    trailing_stop:
+      profit_0_10: initial_stop
+      profit_10_20: breakeven
+      profit_20_30: trail_15pct
+      profit_30_50: trail_10pct
+      profit_50_plus: trail_8pct
