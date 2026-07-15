@@ -44,12 +44,12 @@ class YFinanceSource:
 
         for attempt in range(1, self.max_retries + 1):
             try:
-                logger.info("Fetching US data", symbol=symbol, start=start, end=end_date, attempt=attempt)
+                logger.info("正在获取美股数据", symbol=symbol, start=start, end=end_date, attempt=attempt)
                 ticker = yf.Ticker(symbol)
                 df = ticker.history(start=start, end=end_date, auto_adjust=True)
 
                 if df.empty:
-                    logger.warning("Empty response", symbol=symbol)
+                    logger.warning("返回空数据", symbol=symbol)
                     return pd.DataFrame()
 
                 # Standardize columns
@@ -67,11 +67,11 @@ class YFinanceSource:
                 result.sort_values("trade_date", inplace=True)
                 result.reset_index(drop=True, inplace=True)
 
-                logger.info("Data fetched successfully", symbol=symbol, rows=len(result))
+                logger.info("数据获取成功", symbol=symbol, rows=len(result))
                 return result
 
             except Exception as e:
-                logger.error("Fetch failed", symbol=symbol, error=str(e), attempt=attempt)
+                logger.error("获取失败", symbol=symbol, error=str(e), attempt=attempt)
                 if attempt < self.max_retries:
                     time.sleep(self.retry_delay)
 
@@ -97,7 +97,7 @@ class YFinanceSource:
                     "exchange": info.get("exchange", ""),
                 }
             except Exception as e:
-                logger.error("Info fetch failed", symbol=symbol, error=str(e), attempt=attempt)
+                logger.error("获取信息失败", symbol=symbol, error=str(e), attempt=attempt)
                 if attempt < self.max_retries:
                     time.sleep(self.retry_delay)
         return {"symbol": symbol, "name": "", "sector": "", "industry": "",

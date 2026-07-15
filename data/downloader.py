@@ -64,17 +64,17 @@ class DataDownloader:
                 try:
                     self._check_data_quality(df, symbol)
                 except DataQualityError as e:
-                    logger.warning("Data quality failed", symbol=symbol, error=str(e))
+                    logger.warning("数据质量校验失败", symbol=symbol, error=str(e))
                     results[symbol] = -1
                     continue
 
                 # Store to DB
                 rows = await self._store_bars(symbol, market, df)
                 results[symbol] = rows
-                logger.info("Market data stored", market=market, symbol=symbol, rows=rows)
+                logger.info("行情数据已存储", market=market, symbol=symbol, rows=rows)
 
             except Exception as e:
-                logger.error("Market download failed", market=market, symbol=symbol, error=str(e))
+                logger.error("行情下载失败", market=market, symbol=symbol, error=str(e))
                 results[symbol] = -2
 
         return results
@@ -87,14 +87,14 @@ class DataDownloader:
         """
         results = {}
         for market_key in settings.market.markets:
-            logger.info(f"Updating market: {market_key}")
+            logger.info(f"正在更新市场: {market_key}")
             try:
                 market_result = await self.download_market(market_key)
                 results[market_key] = market_result
                 total = sum(v for v in market_result.values() if v > 0)
-                logger.info(f"Market {market_key} updated: {total} total bars stored")
+                logger.info(f"市场 {market_key} 已更新: 共存储 {total} 条K线")
             except Exception as e:
-                logger.error(f"Market {market_key} update failed", error=str(e))
+                logger.error(f"市场 {market_key} 更新失败", error=str(e))
                 results[market_key] = {"error": str(e)}
         return results
 
@@ -139,7 +139,7 @@ class DataDownloader:
             await self._store_bars(code, market, df)
             return df
         except Exception as e:
-            logger.error(f"download_stock failed", code=code, error=str(e))
+            logger.error("下载单只股票失败", code=code, error=str(e))
             return None
 
     async def screen_all(
@@ -189,7 +189,7 @@ class DataDownloader:
                 df = calculate_bollinger(df)
                 stock_dfs[stock.symbol] = (stock, df)
             except Exception as e:
-                logger.error(f"Data load failed for {stock.symbol}", error=str(e))
+                logger.error(f"{stock.symbol} 数据加载失败", error=str(e))
             if progress_callback:
                 await progress_callback(i + 1, total_stocks, "phase1", "加载行情数据", stock.symbol)
 
@@ -230,13 +230,13 @@ class DataDownloader:
                 })
 
             except Exception as e:
-                logger.error(f"Screening failed for {stock.symbol}", error=str(e))
+                logger.error(f"{stock.symbol} 筛选分析失败", error=str(e))
                 continue
             if progress_callback:
                 await progress_callback(j + 1, len(stock_items), "phase3", "分析SEPA信号", stock.symbol)
 
         results.sort(key=lambda x: x.get("score", 0), reverse=True)
-        logger.info(f"Screening complete: {len(results)} stocks analyzed")
+        logger.info(f"筛选完成: 共分析 {len(results)} 只股票")
         return results
 
     async def _load_stock_data(self, symbol: str, market: str) -> Optional[pd.DataFrame]:
@@ -310,7 +310,7 @@ class DataDownloader:
             if large_gaps > len(df) * 0.01:  # Less than 1% of days
                 pass  # Allow occasional gaps for splits/dividends
 
-        logger.info("Data quality passed", symbol=symbol, rows=len(df))
+        logger.info("数据质量校验通过", symbol=symbol, rows=len(df))
 
     async def _store_bars(self, symbol: str, market: str, df: pd.DataFrame) -> int:
         """Store daily bars to database, also registering the stock."""
@@ -377,7 +377,7 @@ class DataDownloader:
                 "status": "ok",
             }
         except Exception as e:
-            logger.error("get_market_summary failed", error=str(e))
+            logger.error("获取市场概况失败", error=str(e))
             return {
                 "total_stocks": 0,
                 "last_updated": datetime.now().isoformat(),

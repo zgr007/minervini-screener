@@ -62,7 +62,7 @@ def setup_logging(
 
     logger = get_logger(__name__)
     logger.info(
-        "Logging initialized",
+        "日志系统已初始化",
         log_level=log_level,
         log_format=log_format,
         log_file=log_file,

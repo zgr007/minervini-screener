@@ -9,7 +9,7 @@ logger = get_logger(__name__)
 
 
 def main():
-    logger.info("Starting Minervini Screener v1.0", app_name=settings.app.name)
+    logger.info("正在启动Minervini选股器v1.0", app_name=settings.app.name)
     uvicorn.run(
         "web.api:app",
         host="0.0.0.0",

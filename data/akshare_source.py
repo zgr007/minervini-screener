@@ -27,7 +27,7 @@ class AKShareSource:
             import akshare as ak
             return ak
         except ImportError:
-            logger.error("akshare not installed")
+            logger.error("akshare未安装")
             return None
 
     def _symbol_to_sina_format(self, symbol: str) -> str:
@@ -66,14 +66,14 @@ class AKShareSource:
 
         for attempt in range(1, self.max_retries + 1):
             try:
-                logger.info("Fetching A-share data", symbol=symbol, start=start_date, end=end_date, attempt=attempt)
+                logger.info("正在获取A股数据", symbol=symbol, start=start_date, end=end_date, attempt=attempt)
 
                 # First try: Sina Finance API (more reliable internationally)
                 sina_symbol = self._symbol_to_sina_format(symbol)
                 df = ak.stock_zh_a_daily(symbol=sina_symbol, adjust="qfq")
 
                 if df.empty:
-                    logger.warning("Empty Sina response", symbol=symbol)
+                    logger.warning("新浪返回空数据", symbol=symbol)
                     # Fallback: try East Money API
                     try:
                         df = ak.stock_zh_a_hist(
@@ -84,7 +84,7 @@ class AKShareSource:
                         return pd.DataFrame()
 
                 if df.empty:
-                    logger.warning("Empty A-share response", symbol=symbol)
+                    logger.warning("A股返回空数据", symbol=symbol)
                     return pd.DataFrame()
 
                 # Map AKShare columns to standard format
@@ -123,11 +123,11 @@ class AKShareSource:
                 result.sort_values("trade_date", inplace=True)
                 result.reset_index(drop=True, inplace=True)
 
-                logger.info("A-share data fetched", symbol=symbol, rows=len(result))
+                logger.info("A股数据获取成功", symbol=symbol, rows=len(result))
                 return result
 
             except Exception as e:
-                logger.error("A-share fetch failed", symbol=symbol, error=str(e), attempt=attempt)
+                logger.error("A股数据获取失败", symbol=symbol, error=str(e), attempt=attempt)
                 if attempt < self.max_retries:
                     time.sleep(self.retry_delay)
 
@@ -150,5 +150,5 @@ class AKShareSource:
             })
             return result
         except Exception as e:
-            logger.error("Stock list fetch failed", error=str(e))
+            logger.error("获取股票列表失败", error=str(e))
             return pd.DataFrame()

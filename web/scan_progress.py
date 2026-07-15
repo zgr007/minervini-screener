@@ -35,7 +35,7 @@ def create_run(run_id: str, total: int = 0) -> None:
     _run["message"] = ""
     _run["started_at"] = datetime.now().isoformat()
     _run["completed_at"] = None
-    logger.info(f"Scan run created: {run_id}, total={total}")
+    logger.info(f"扫描任务已创建: {run_id}, 总计={total}")
 
 
 def update_progress(
@@ -66,7 +66,7 @@ def complete_run(status: str = "completed", error: str = "") -> None:
     _run["completed_at"] = datetime.now().isoformat()
     if error:
         _run["message"] = error
-    logger.info(f"Scan run completed: status={status}")
+    logger.info(f"扫描任务完成: status={status}")
 
 
 def get_progress() -> dict:

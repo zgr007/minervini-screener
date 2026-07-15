@@ -28,7 +28,7 @@ def calculate_volume_ma(
     periods = periods or settings.indicators.volume.sma_periods
 
     if "volume" not in result.columns:
-        logger.error("Missing 'volume' column")
+        logger.error("缺少volume列")
         return result
 
     for period in periods:

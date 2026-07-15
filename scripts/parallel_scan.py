@@ -49,12 +49,12 @@ async def load_and_compute(
             df = calculate_bollinger(df)
             return stock.symbol, df
         except Exception as e:
-            logger.error(f"Failed to load/compute {stock.symbol}: {e}")
+            logger.error(f"{stock.symbol} 加载/计算失败: {e}")
             return stock.symbol, None
 
 
 async def main():
-    logger.info("Starting parallel scan...")
+    logger.info("开始并行扫描...")
     downloader = DataDownloader()
 
     # --- Load stock list ---
@@ -63,7 +63,7 @@ async def main():
         result = await session.execute(query)
         stocks = result.scalars().all()
 
-    logger.info(f"Loaded {len(stocks)} CN stocks from DB")
+    logger.info(f"已从数据库加载{len(stocks)}只A股")
 
     # --- Phase 1: Parallel data loading + indicator computation ---
     sem = asyncio.Semaphore(20)  # 20 concurrent
@@ -75,12 +75,12 @@ async def main():
         if df is not None:
             stock_dfs[symbol] = df
 
-    logger.info(f"Phase 1 complete: {len(stock_dfs)}/{len(stocks)} stocks have data")
+    logger.info(f"第一阶段完成: {len(stock_dfs)}/{len(stocks)} 只有数据")
 
     # --- Phase 2: Batch RS rating ---
     rs_engine = RSRatingEngine()
     rs_results = rs_engine.compute_batch(stock_dfs)
-    logger.info(f"Phase 2 complete: RS ratings computed for {len(rs_results)} stocks")
+    logger.info(f"第二阶段完成: RS评级已计算{len(rs_results)}只")
 
     # --- Phase 3: SEPA analysis per stock (sequential, fast) ---
     stock_map = {s.symbol: s for s in stocks}
@@ -113,11 +113,11 @@ async def main():
                 "current_price": strategy_result.data.get("current_price", 0),
             })
         except Exception as e:
-            logger.error(f"SEPA failed for {symbol}: {e}")
+            logger.error(f"{symbol} SEPA分析失败: {e}")
             continue
 
     sepa_results.sort(key=lambda x: x.get("score", 0), reverse=True)
-    logger.info(f"Phase 3 complete: {len(sepa_results)} stocks analyzed")
+    logger.info(f"第三阶段完成: {len(sepa_results)} 只已分析")
 
     # --- Persist to DB ---
     async with async_session_factory() as session:
@@ -160,7 +160,7 @@ async def main():
         for r in watch_signals[:10]:
             print(f"  {r['code']:10s} {r.get('name',''):30s} Score={r['score']:.1f}  Reason={r.get('reason','')[:60]}")
 
-    logger.info(f"Parallel scan complete: {len(buy_signals)} buy, {len(watch_signals)} watch, {len(sepa_results)} total")
+    logger.info(f"并行扫描完成: {len(buy_signals)} 买入, {len(watch_signals)} 关注, 共{len(sepa_results)}只")
 
 
 if __name__ == "__main__":

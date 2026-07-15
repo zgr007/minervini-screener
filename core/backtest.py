@@ -54,7 +54,7 @@ class SEPABacktest:
     async def run(self) -> dict:
         """Execute the backtest and return results."""
         logger.info(
-            "Backtest start",
+            "回测开始",
             market=self.market,
             period=f"{self.start_date} ~ {self.end_date}",
             capital=self.initial_capital,
@@ -65,7 +65,7 @@ class SEPABacktest:
         if not stocks:
             return self._result("没有可用的股票数据")
 
-        logger.info(f"Universe: {len(stocks)} stocks")
+        logger.info(f"股票池: {len(stocks)} 只")
 
         # 2. Pre-load all price data + calculate indicators (rolling → point-in-time valid)
         stock_dfs: dict[str, tuple] = {}
@@ -80,7 +80,7 @@ class SEPABacktest:
                 df = calculate_bollinger(df)
                 stock_dfs[stock.symbol] = (stock, df)
             except Exception as e:
-                logger.warning(f"load fail {stock.symbol}: {e}")
+                logger.warning(f"{stock.symbol} 加载失败: {e}")
 
         if not stock_dfs:
             return self._result("没有足够的历史数据")
@@ -131,7 +131,7 @@ class SEPABacktest:
 
         self._record_equity(trading_days[-1], stock_dfs)
 
-        logger.info(f"Backtest done: {rebalance_count} rebalances, {len(self.trades)} trades")
+        logger.info(f"回测完成: 调仓{rebalance_count}次, 交易{len(self.trades)}笔")
 
         # 7. Compute metrics
         return self._result(metrics=self._calc_metrics())

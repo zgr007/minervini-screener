@@ -26,13 +26,13 @@ logger = get_logger(__name__)
 
 def cmd_init_db() -> int:
     """Initialize database tables."""
-    logger.info("Initializing database...")
+    logger.info("正在初始化数据库...")
     try:
         asyncio.run(_init_db_async())
         print("[OK] Database initialized")
         return 0
     except Exception as e:
-        logger.error(f"Database initialization failed: {e}", exc_info=True)
+        logger.error(f"数据库初始化失败: {e}", exc_info=True)
         print(f"[FAIL] Database initialization failed: {e}")
         return 1
 
@@ -45,7 +45,7 @@ async def _init_db_async() -> None:
 
 def cmd_migrate() -> int:
     """Run Alembic migrations."""
-    logger.info("Running database migrations...")
+    logger.info("正在运行数据库迁移...")
     try:
         import subprocess
         result = subprocess.run(
@@ -53,26 +53,26 @@ def cmd_migrate() -> int:
             capture_output=True, text=True, check=False,
         )
         if result.returncode != 0:
-            logger.error(f"Alembic failed: {result.stderr}")
+            logger.error(f"Alembic迁移失败: {result.stderr}")
             print(f"[FAIL] Migrations failed: {result.stderr.strip()}")
             return 1
         print("[OK] Migrations complete")
         return 0
     except Exception as e:
-        logger.error(f"Migration error: {e}")
+        logger.error(f"迁移错误: {e}")
         print(f"✗ Migration error: {e}")
         return 1
 
 
 def cmd_update_data(market: str) -> int:
     """Update market data for given market."""
-    logger.info(f"Updating data for market: {market}")
+    logger.info(f"正在更新{market}市场数据")
     try:
         asyncio.run(_update_data_async(market))
         print(f"[OK] Data update complete for {market}")
         return 0
     except Exception as e:
-        logger.error(f"Data update failed: {e}", exc_info=True)
+        logger.error(f"数据更新失败: {e}", exc_info=True)
         print(f"[FAIL] Data update failed: {e}")
         return 1
 
@@ -84,19 +84,19 @@ async def _update_data_async(market: str) -> dict:
     results = await downloader.download_market(market)
     total = sum(v for v in results.values() if v > 0)
     failed = sum(1 for v in results.values() if v < 0)
-    logger.info(f"Download complete: {total} rows, {failed} failures")
+    logger.info(f"下载完成: {total} 行, {failed} 失败")
     return results
 
 
 def cmd_scan(market: str) -> int:
     """Run screening scan for given market."""
-    logger.info(f"Running screening scan for market: {market}")
+    logger.info(f"正在运行{market}市场筛选扫描")
     try:
         asyncio.run(_scan_async(market))
         print(f"[OK] Screening complete for {market}")
         return 0
     except Exception as e:
-        logger.error(f"Screening failed: {e}", exc_info=True)
+        logger.error(f"筛选失败: {e}", exc_info=True)
         print(f"[FAIL] Screening failed: {e}")
         return 1
 
@@ -138,7 +138,7 @@ async def _persist_scan_results_to_db(results: list[dict]) -> None:
     from sqlalchemy import delete
 
     if not results:
-        logger.warning("No scan results to persist")
+        logger.warning("无扫描结果需要保存")
         return
 
     async with async_session_factory() as session:
@@ -162,12 +162,12 @@ async def _persist_scan_results_to_db(results: list[dict]) -> None:
             session.add(entry)
 
         await session.commit()
-        logger.info(f"Persisted {len(results)} scan results to screen_results table")
+        logger.info(f"已将{len(results)}条扫描结果保存到screen_results表")
 
 
 def cmd_monitor(market: str) -> int:
     """Start live monitoring for given market (continuous)."""
-    logger.info(f"Starting monitor for market: {market}")
+    logger.info(f"开始监控{market}市场")
     try:
         from tasks.worker import TaskWorker
         worker = TaskWorker()
@@ -175,24 +175,24 @@ def cmd_monitor(market: str) -> int:
         asyncio.run(worker.start())
         return 0
     except KeyboardInterrupt:
-        logger.info("Monitor stopped by user")
+        logger.info("用户停止了监控")
         print("\n[OK] Monitor stopped")
         return 0
     except Exception as e:
-        logger.error(f"Monitor failed: {e}", exc_info=True)
+        logger.error(f"监控失败: {e}", exc_info=True)
         print(f"[FAIL] Monitor failed: {e}")
         return 1
 
 
 def cmd_backtest(market: str, start: str, end: str) -> int:
     """Run backtest for given market and date range."""
-    logger.info(f"Running backtest: market={market}, start={start}, end={end}")
+    logger.info(f"运行回测: 市场={market}, 起始={start}, 结束={end}")
     try:
         asyncio.run(_backtest_async(market, start, end))
         print(f"[OK] Backtest complete for {market} {start} to {end}")
         return 0
     except Exception as e:
-        logger.error(f"Backtest failed: {e}", exc_info=True)
+        logger.error(f"回测失败: {e}", exc_info=True)
         print(f"[FAIL] Backtest failed: {e}")
         return 1
 
@@ -206,7 +206,7 @@ async def _backtest_async(market: str, start: str, end: str) -> dict:
     results = await downloader.screen_all(market=market)
 
     if not results:
-        logger.warning("No screening results for backtest")
+        logger.warning("无筛选结果用于回测")
         return {}
 
     # Build data dict from the screening results (signals)
@@ -230,7 +230,7 @@ async def _backtest_async(market: str, start: str, end: str) -> dict:
             data[code] = df
 
     if not data:
-        logger.warning("No price data available for backtest")
+        logger.warning("无价格数据可用于回测")
         return {}
 
     # Build signal series from screening

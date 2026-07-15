@@ -32,7 +32,7 @@ def calculate_bollinger(
 
     price_col = "adjusted_close" if "adjusted_close" in result.columns else "close"
     if price_col not in result.columns:
-        logger.error("No price column for Bollinger calculation")
+        logger.error("布林带计算找不到价格列")
         return result
 
     result["boll_mid"] = result[price_col].rolling(window=period).mean()

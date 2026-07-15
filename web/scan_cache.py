@@ -35,7 +35,7 @@ async def get_scan_results(force_refresh: bool = False) -> list[dict]:
         and len(_scan_cache) > 0  # Don't cache empty results
     )
     if use_cache:
-        logger.debug(f"Returning {len(_scan_cache)} cached scan results")
+        logger.debug(f"返回{len(_scan_cache)}条缓存扫描结果")
         return _scan_cache
 
     # Cache miss or empty — read from DB screen_results table
@@ -43,7 +43,7 @@ async def get_scan_results(force_refresh: bool = False) -> list[dict]:
 
     _scan_cache = results
     _scan_cache_time = now
-    logger.info(f"Scan cache loaded from DB: {len(results)} results")
+    logger.info(f"扫描缓存已从数据库加载: {len(results)} 条结果")
     return results
 
 
@@ -62,7 +62,7 @@ async def _load_from_db() -> list[dict]:
             rows = (await session.execute(stmt)).scalars().all()
 
         if not rows:
-            logger.debug("screen_results table is empty — returning []")
+            logger.debug("screen_results表为空，返回[]")
             return []
 
         results = []
@@ -83,7 +83,7 @@ async def _load_from_db() -> list[dict]:
             })
         return results
     except Exception as e:
-        logger.error(f"Failed to load scan results from DB: {e}", exc_info=True)
+        logger.error(f"从数据库加载扫描结果失败: {e}", exc_info=True)
         return []
 
 
@@ -91,4 +91,4 @@ def invalidate_cache():
     """Force cache refresh from DB on next request."""
     global _scan_cache_time
     _scan_cache_time = None
-    logger.debug("Scan cache invalidated")
+    logger.debug("扫描缓存已失效")

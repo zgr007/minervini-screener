@@ -33,7 +33,7 @@ def calculate_ma(
         # Fall back to close
         column = "close"
         if column not in result.columns:
-            logger.error("No price column found for MA calculation")
+            logger.error("MA计算找不到价格列")
             return result
 
     for period in periods:

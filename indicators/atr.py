@@ -32,7 +32,7 @@ def calculate_atr(
 
     required = ["high", "low", "close"]
     if not all(c in result.columns for c in required):
-        logger.error("Missing required columns for ATR: high, low, close")
+        logger.error("ATR计算缺少必需列: high, low, close")
         return result
 
     prev_close = result["close"].shift(1)

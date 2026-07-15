@@ -21,9 +21,9 @@ def _load_cn_map():
             records = json.loads(_CN_STOCKS_FILE.read_text(encoding="utf-8"))
             for r in records:
                 _cn_name_map[r["code"]] = r["name"]
-            logger.info(f"Loaded {len(_cn_name_map)} CN stock names")
+            logger.info(f"已加载{len(_cn_name_map)}只A股名称")
     except Exception as e:
-        logger.error(f"Failed to load CN stock names: {e}")
+        logger.error(f"加载A股名称失败: {e}")
 
 
 def resolve_name(symbol: str, market: str) -> str:

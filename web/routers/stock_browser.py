@@ -41,11 +41,11 @@ def _load_cn_stock_list() -> list[dict]:
             raw = _CN_STOCKS_FILE.read_text(encoding="utf-8")
             records = json.loads(raw)
             _cn_stock_list.extend(records)
-            logger.info(f"CN stock list loaded from file: {len(records)} stocks")
+            logger.info(f"已从文件加载A股列表: {len(records)} 只")
         else:
-            logger.warning(f"CN stock list file not found: {_CN_STOCKS_FILE}")
+            logger.warning(f"A股列表文件不存在: {_CN_STOCKS_FILE}")
     except Exception as e:
-        logger.error(f"Failed to load CN stock list: {e}")
+        logger.error(f"加载A股列表失败: {e}")
     return _cn_stock_list
 
 
@@ -157,7 +157,7 @@ async def _search_us(q: str, limit: int) -> dict:
                     "sector": (info.get("sector") or "").strip(),
                 })
         except Exception as e:
-            logger.warning(f"US ticker lookup failed for {q}: {e}")
+            logger.warning(f"美股代码查询失败 {q}: {e}")
     return {"data": results[:limit], "total": len(results)}
 
 
@@ -189,7 +189,7 @@ async def add_stock(req: AddStockRequest):
             stock = Stock(symbol=symbol, name=name, market=market)
             session.add(stock)
             await session.commit()
-            logger.info(f"Stock registered in DB", symbol=symbol, market=market)
+            logger.info(f"股票已在数据库中注册", symbol=symbol, market=market)
 
     # 2. Add to config.yaml (non-fatal if fails, run in thread pool to avoid blocking)
     loop = asyncio.get_running_loop()
@@ -212,11 +212,11 @@ async def _download_and_refresh(symbol: str, market: str):
     try:
         df = await downloader.download_stock(symbol, force_download=True)
         if df is not None and not df.empty:
-            logger.info(f"Stock data downloaded", symbol=symbol, rows=len(df))
+            logger.info(f"股票数据已下载", symbol=symbol, rows=len(df))
         else:
-            logger.warning(f"Stock data empty after download", symbol=symbol)
+            logger.warning(f"股票数据下载后为空", symbol=symbol)
     except Exception as e:
-        logger.error(f"Stock download failed", symbol=symbol, error=str(e))
+        logger.error(f"股票下载失败", symbol=symbol, error=str(e))
 
 
 def _add_to_config(symbol: str, market: str):
@@ -233,9 +233,9 @@ def _add_to_config(symbol: str, market: str):
                 yaml.dump(config, allow_unicode=True, default_flow_style=False),
                 encoding="utf-8",
             )
-            logger.info(f"Added to config.yaml", symbol=symbol, market=market)
+            logger.info(f"已添加到config.yaml", symbol=symbol, market=market)
     except Exception as e:
-        logger.warning(f"Config update failed (non-fatal): {e}")
+        logger.warning(f"配置更新失败(非致命): {e}")
 
 
 @router.delete("/remove/{market}/{symbol}")
@@ -253,7 +253,7 @@ async def remove_stock(market: str, symbol: str):
         await session.execute(delete(Stock).where(Stock.symbol == symbol, Stock.market == market))
         await session.commit()
 
-    logger.info(f"Stock removed from DB", symbol=symbol, market=market)
+    logger.info(f"股票已从数据库移除", symbol=symbol, market=market)
     from web.scan_cache import invalidate_cache
     invalidate_cache()
     return {"data": {"symbol": symbol, "market": market, "status": "removed"}}
@@ -283,7 +283,7 @@ async def backfill_names():
                 updated += 1
         if updated:
             await session.commit()
-            logger.info(f"Backfilled names for {updated} stocks")
+            logger.info(f"已为{updated}只股票补全名称")
 
     return {"data": {"updated": updated}}
 

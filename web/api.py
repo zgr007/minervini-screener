@@ -68,7 +68,7 @@ def create_app() -> FastAPI:
     app.include_router(stubs_router)
     app.include_router(stock_browser_router)
 
-    logger.info("Application created", routes=len(app.routes))
+    logger.info("应用已创建", routes=len(app.routes))
     return app
 
 

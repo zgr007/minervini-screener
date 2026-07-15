@@ -147,7 +147,7 @@ class RSRatingEngine:
                 rs = self.compute_rs(symbol, df, market_data)
                 results[symbol] = rs
             except Exception as e:
-                logger.error("RS compute failed", symbol=symbol, error=str(e))
+                logger.error("RS评级计算失败", symbol=symbol, error=str(e))
         return results
 
     @staticmethod

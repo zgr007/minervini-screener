@@ -43,7 +43,7 @@ async def _load_fresh_data(downloader: DataDownloader, code: str, refresh: bool,
     df = _ensure_date_index(df)
     if df is not None and not df.empty:
         if not refresh and _is_data_stale(df):
-            logger.info(f"[{code}] Data stale, refreshing from source...")
+            logger.info(f"[{code}] 数据过期，正在从源刷新...")
             df = await downloader.download_stock(code, force_download=True)
             df = _ensure_date_index(df)
     else:

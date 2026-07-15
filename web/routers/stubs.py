@@ -53,7 +53,7 @@ async def dashboard():
     try:
         results = await get_scan_results()
     except Exception as e:
-        logger.error(f"Dashboard scan failed: {e}")
+        logger.error(f"仪表板扫描失败: {e}")
         return {
             "data": {
                 "market_phase": "unknown",
@@ -110,7 +110,7 @@ async def data_status():
             }
         }
     except Exception as e:
-        logger.error(f"Data status failed: {e}")
+        logger.error(f"数据状态获取失败: {e}")
         return {"data": {"last_update": {}, "has_data": {}, "stock_counts": {}}}
 
 
@@ -169,9 +169,9 @@ async def _run_data_download(task_id: str, market: str):
         from web.scan_cache import invalidate_cache
         invalidate_cache()
         complete_task(task_id)
-        logger.info(f"Data download completed", market=market, task_id=task_id, result=result)
+        logger.info(f"数据下载完成", market=market, task_id=task_id, result=result)
     except Exception as e:
-        logger.error(f"Data download failed", market=market, task_id=task_id, error=str(e))
+        logger.error(f"数据下载失败", market=market, task_id=task_id, error=str(e))
         complete_task(task_id, error=str(e))
 
 
@@ -191,7 +191,7 @@ async def screen_results():
     try:
         results = await get_scan_results()
     except Exception as e:
-        logger.error(f"Screen results failed: {e}")
+        logger.error(f"筛选结果获取失败: {e}")
         return {"data": []}
 
     transformed = [_transform_screen_result(r) for r in results]
@@ -254,10 +254,10 @@ async def _run_scan_background(run_id: str):
 
         invalidate_cache()
         complete_run("completed")
-        logger.info(f"Background scan completed: {len(results)} results")
+        logger.info(f"后台扫描完成: {len(results)} 条结果")
 
     except Exception as e:
-        logger.error(f"Background scan failed: {e}", exc_info=True)
+        logger.error(f"后台扫描失败: {e}", exc_info=True)
         complete_run("failed", str(e))
 
 
@@ -274,7 +274,7 @@ async def _persist_scan_results(run_id: str, results: list[dict]) -> None:
     from sqlalchemy import delete
 
     if not results:
-        logger.warning("No scan results to persist")
+        logger.warning("无扫描结果需要保存")
         return
 
     async with async_session_factory() as session:
@@ -300,7 +300,7 @@ async def _persist_scan_results(run_id: str, results: list[dict]) -> None:
             session.add(entry)
 
         await session.commit()
-        logger.info(f"Persisted {len(results)} scan results to screen_results table")
+        logger.info(f"已将{len(results)}条扫描结果保存到screen_results表")
 
 
 @router.get("/watchlist")
@@ -344,7 +344,7 @@ async def _signals_today_impl():
     try:
         results = await get_scan_results()
     except Exception as e:
-        logger.error(f"Signals fetch failed: {e}")
+        logger.error(f"信号获取失败: {e}")
         return {"data": []}
 
     signals = []
@@ -453,7 +453,7 @@ async def stock_stub(symbol: str):
             }
         }
     except Exception as e:
-        logger.error(f"[{symbol}] Stock detail failed: {e}")
+        logger.error(f"[{symbol}] 股票详情获取失败: {e}")
         return {"data": None, "code": symbol, "error": str(e)}
 
 
@@ -485,7 +485,7 @@ async def stock_patterns_stub(symbol: str):
             }], "code": symbol}
         return {"data": [], "code": symbol}
     except Exception as e:
-        logger.error(f"[{symbol}] Patterns failed: {e}")
+        logger.error(f"[{symbol}] 形态分析失败: {e}")
         return {"data": [], "code": symbol}
 
 
@@ -517,7 +517,7 @@ async def stock_price_stub(symbol: str):
             })
         return {"data": {"prices": prices}, "code": symbol}
     except Exception as e:
-        logger.error(f"[{symbol}] Price fetch failed: {e}")
+        logger.error(f"[{symbol}] 价格获取失败: {e}")
         return {"data": {"prices": []}, "code": symbol}
 
 
@@ -548,7 +548,7 @@ async def stock_indicators_stub(symbol: str):
                     row[k] = v.item()
         return {"data": indicators, "code": symbol}
     except Exception as e:
-        logger.error(f"[{symbol}] Indicators failed: {e}")
+        logger.error(f"[{symbol}] 指标获取失败: {e}")
         return {"data": [], "code": symbol}
 
 

@@ -22,7 +22,7 @@ def create_task() -> str:
         "completed_at": None,
         "error": None,
     }
-    logger.info(f"Task created: {task_id}")
+    logger.info(f"任务已创建: {task_id}")
     return task_id
 
 
